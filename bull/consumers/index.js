@@ -1,6 +1,7 @@
 const { Worker, Job } = require('bullmq');
 const axios = require('axios');
 require('dotenv').config();
+const { calculateProjections } = require('./functions');
 
 const connection = {
   host: process.env.REDIS_HOST || 'localhost',
@@ -14,9 +15,36 @@ const worker = new Worker('stocks estimation', async (job) => {
 
   const {
     userId,
+    token,
   } = job.data;
 
-  job.log(`Worker received data: ${JSON.stringify(job.data)}`); // Log de los datos recibidos
+  job.log(`Worker received data: user: ${userId} token: ${token}`); // Log de los datos recibidos
+
+  // paso 1: obtener las acciones compradas por el usuario
+  const boughtStocks = await axios.get(`${process.env.URL_API}/boughtStocks`, {
+          headers: { Authorization: `Bearer ${job.data.token}` }
+        });
+
+  // paso 2:Obtener, para cada tipo de acción, la última actualización precio obtenida y la
+  // actualización obtenida el último mes.
+
+  // 2. Calcular proyección para cada acción
+  const projections = await calculateProjections(boughtStocks);
+
+  // 3. Calcular total y generar respuesta
+  const totalProjection = projections.reduce((sum, p) => sum + p.totalGain, 0);
+
+  ctx.body = {
+      request_id,
+      timestamp: new Date().toISOString(),
+      status: "OK",
+      reason: "Proyección calculada exitosamente",
+      projections,
+      totalProjection 
+  };
+  console.log(projections,
+      totalProjection )
+
 
   // const sameDepartureFlightsUrl = `https://${process.env.URL_API}/flights?departure=${lastFlight.arrival_airport_id}`;
   // job.log(`sameDepartureFlightsUrl: ${sameDepartureFlightsUrl}`); // Log de la URL

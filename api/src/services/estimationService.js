@@ -3,7 +3,8 @@ const { stocksQueue, stockQueueEvents } = require('../queues/stockQueue');
 exports.produceEstimation= async (req, res) => {
   try {
     const job = await stocksQueue.add('stocks estimation', {
-      userId: req.body.userId, 
+      userId: req.body.userId,
+      token: req.body.token,
     });
     const completedJob = await job.waitUntilFinished(stockQueueEvents);
     res.status(201).send(JSON.stringify(completedJob));

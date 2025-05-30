@@ -32,7 +32,7 @@ app.get('/heartbeat', (req, res) => {
   res.send({status: true});
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => {
   console.log(`Master API running on port ${PORT}`);
 });

@@ -3,12 +3,13 @@ services:
     build:
       context: ./api
       dockerfile: Dockerfile
-    container_name: api
+    container_name: worker
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3005:3005"
     networks:
       - app-network
+      - shared-network
     depends_on:
       - redis
     environment:
@@ -61,3 +62,7 @@ services:
 networks:
   app-network:
     driver: bridge
+  shared-network:
+    driver: bridge
+    name: shared-network
+    attachable: true
