@@ -1,37 +1,42 @@
 const axios = require('axios');
 require('dotenv').config();
-// calcular proyecciones 
+
 async function calculateProjections(stocks) {
+    const linearProjections = await getProjections(stocks, simpleLinearEstimate);
+    const linearRegressions = await getProjections(stocks, LinearRegressionEstimate);
+    return { linearProjections, linearRegressions };
+}
+
+async function getProjections(stocks, estimationFunction) {
     const projections = [];
 
     for (const stock of stocks) {
-        // Obtener precios históricos (último mes)
         const historicalPrices = await getHistoricalPrices(stock.symbol);
         let projection;
 
         if (historicalPrices.length < 2) {
             projection = {
                 symbol: stock.symbol,
-                currentPrice: stock.currentPrice,
-                nextMonthPrice: stock.currentPrice, // Mantiene el precio actual
+                currentPrice: stock.individualPrice,
+                nextMonthPrice: stock.currentPrice,
                 purchased: stock.purchased,
-                priceChange: 0, // Sin cambio
-                totalGain: 0, // Sin ganancia
+                priceChange: 0,
+                totalGain: 0,
                 warning: `Datos insuficientes (${historicalPrices.length} puntos)`
             };
         } else {
-            const { nextMonthPrice } = calculateLinearProjection(historicalPrices);
+            const { nextMonthPrice } = estimationFunction(historicalPrices);
 
-            const priceChange = nextMonthPrice - stock.currentPrice;
+            const priceChange = nextMonthPrice - stock.individualPrice;
             const totalGain = priceChange * stock.purchased;
 
             projection = {
                 symbol: stock.symbol,
-                currentPrice: stock.currentPrice,
+                currentPrice: stock.individualPrice,
                 nextMonthPrice,
                 purchased: stock.purchased,
                 priceChange,
-                totalGain: totalGain
+                totalGain
             };
         }
 
@@ -41,9 +46,10 @@ async function calculateProjections(stocks) {
     return projections;
 }
 
+//Documentarr
 // calculo proyeccion lineal 
 
-function calculateLinearProjection(prices) {
+function LinearRegressionEstimate(prices) {
     // Convertir fechas a timestamps (días desde el primer dato)
     const timestamps = prices.map(p => new Date(p.timestamp).getTime());
     const minTime = Math.min(...timestamps);
@@ -66,15 +72,46 @@ function calculateLinearProjection(prices) {
     return { m, b, nextMonthPrice };
 }
 
-// obtener precios historicos 
+function simpleLinearEstimate(prices) {
+  // Validación básica
+  if (!Array.isArray(prices) || prices.length < 2) {
+    throw new Error('Se requieren al menos 2 puntos de datos');
+  }
+
+  const firstPoint = prices[0];
+  const lastPoint = prices[prices.length - 1];
+
+  // Convertir timestamps a días
+  const firstDate = new Date(firstPoint.timestamp);
+  const lastDate = new Date(lastPoint.timestamp);
+  const totalDays = (lastDate - firstDate) / (1000 * 60 * 60 * 24);
+
+  // Calcular pendiente (m)
+  const m = (lastPoint.price - firstPoint.price) / totalDays;
+  const b = lastPoint.price
+  // Calcular precio proyectado (30 días después del último punto)
+  const nextMonthPrice = lastPoint.price + m * 30;
+
+  return { m, b, nextMonthPrice };
+}
 
 async function getHistoricalPrices(symbol) {
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    try {
+        const response = await axios.get(`${process.env.URL_API}/stocktrajectory/${symbol}`);
+        
+        if (!response.data || !Array.isArray(response.data)) {
+            throw new Error('Formato de respuesta inválido');
+        }
 
-    const prices = await axios.get(`${process.env.URL_API}/stocktrajectory/:${symbol}`);
+        return response.data.map(item => ({
+            price: item.price,
+            timestamp: item.timestamp
+        }));
 
-    return prices;
+    } catch (error) {
+        console.error(`Error obteniendo precios para ${symbol}:`, error.message);
+        return [];
+    }
 }
 
 module.exports = { calculateProjections };

@@ -1,5 +1,5 @@
 services:
-  api:
+  worker-api:
     build:
       context: ./api
       dockerfile: Dockerfile
@@ -38,10 +38,10 @@ services:
     build:
       context: ./bull/consumers
       dockerfile: Dockerfile
-    container_name: consumer
     restart: unless-stopped
     networks:
       - app-network
+      - shared-network
     depends_on:
       - redis
     environment:
@@ -49,6 +49,9 @@ services:
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       URL_API: ${URL_API}
+      WORKER_ID: "consumer-${HOSTNAME}"
+    deploy:
+      replicas: 5
 
   redis:
     image: redis:alpine
@@ -66,3 +69,4 @@ networks:
     driver: bridge
     name: shared-network
     attachable: true
+    external: true

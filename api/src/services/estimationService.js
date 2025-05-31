@@ -18,7 +18,7 @@ exports.getJobStatus = async (req, res) => {
     const job = await stocksQueue.getJob(req.params.id);
     if (job) {
       const state = await job.getState();
-      const progress = await job.progress();
+      const progress = await job.progress;
       res.send({ id: job.id, state, progress });
     } else {
       res.status(404).send({ error: 'Job not found' });

@@ -10,7 +10,7 @@ COPY . .
 RUN yarn install --production
 
 # Expone el puerto que la aplicación usa
-EXPOSE 3000
+EXPOSE 3005
 
 
 # Comando para iniciar la aplicación
